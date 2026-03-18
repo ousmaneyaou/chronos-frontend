@@ -1,9 +1,10 @@
 import axios from "axios";
 
-// En local      : /api  (proxy package.json → localhost:8020)
-// En production : https://ton-app.railway.app/api  (variable d'environnement Vercel)
+// En local      : /api  (proxy package.json)
+// En production : https://chronos-backend-production-b742.up.railway.app/api
 const API = axios.create({
   baseURL: process.env.REACT_APP_API_URL || "/api",
+  timeout: 30000, // ← 30 secondes — GIM Pay peut prendre jusqu'à 22s
 });
 
 export const watchApi = {
@@ -37,5 +38,5 @@ export const orderApi = {
 };
 
 export const paymentApi = {
-  payByCard: (data) => API.post("/payment/pay", data),
+  payByCard: (data) => API.post("/payment/pay", data, { timeout: 60000 }), // ← 60s pour le paiement
 };
