@@ -21,3 +21,7 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Variables d'environnement — ne pas publier sur GitHub
+.env
+.env.production

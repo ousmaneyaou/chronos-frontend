@@ -1,0 +1,116 @@
+.watch-card {
+  background: var(--black-card);
+  border: 1px solid var(--gray-dim);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--transition);
+  animation: fadeUp 0.5s ease both;
+}
+.watch-card:hover {
+  border-color: var(--gold-dark);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card), var(--shadow-gold);
+}
+
+/* Image */
+.watch-card__image-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--black-mid);
+}
+.watch-card__image {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+}
+.watch-card:hover .watch-card__image { transform: scale(1.05); }
+.watch-card__image-placeholder {
+  width: 100%; height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold-dark);
+  font-size: 3rem;
+  opacity: 0.3;
+}
+
+/* Overlay */
+.watch-card__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.7);
+  display: flex;
+  align-items: flex-end;
+  padding: 16px;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.watch-card:hover .watch-card__overlay { opacity: 1; }
+.watch-card__overlay-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--gold);
+  color: var(--black);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+}
+.watch-card__overlay-btn:hover:not(:disabled) { background: var(--gold-light); }
+.watch-card__overlay-btn:disabled { background: var(--gray-dim); color: var(--gray); cursor: not-allowed; }
+
+/* Stock badge */
+.watch-card__stock-badge {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: rgba(201, 168, 76, 0.9);
+  color: var(--black);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.watch-card__stock-badge--empty {
+  background: rgba(201, 76, 76, 0.9);
+  color: var(--white);
+}
+
+/* Info */
+.watch-card__info {
+  padding: 16px;
+}
+.watch-card__brand {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+.watch-card__name {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 400;
+  color: var(--white);
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+.watch-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
