@@ -20,7 +20,7 @@ export default function CheckoutPage() {
   const [polling, setPolling] = useState(false);
   const [order, setOrder] = useState(null);
   const [paymentResult, setPaymentResult] = useState(null);
-  const [threeDsOpen, setThreeDsOpen] = useState(false);
+  const [threeDsPending, setThreeDsPending] = useState(false); // ← attend confirmation client
   const [shipping, setShipping] = useState({ address: user?.address || "" });
   const [payment, setPayment] = useState({
     pan: "",
@@ -93,12 +93,18 @@ export default function CheckoutPage() {
       await loadCart();
 
       if (result.challengeRequired && result.threeDsUrl) {
-        // 3DS ON → sauvegarder l'orderId et ouvrir l'iframe
+        // ← Sauvegarder l'orderId pour le polling
         localStorage.setItem("pending_order_id", order.id);
+
+        // ← Ouvrir la page 3DS dans un NOUVEL ONGLET
+        // (pas dans une iframe — évite le problème de redirection)
+        window.open(result.threeDsUrl, "_blank");
+
+        // ← Afficher le panneau d'attente
+        setThreeDsPending(true);
         toast.info(
-          "Authentification 3D Secure requise — complétez la vérification",
+          "Une nouvelle fenêtre s'est ouverte — saisissez votre OTP puis revenez ici",
         );
-        setThreeDsOpen(true);
       } else {
         setStep(2);
         if (result.status === "SUCCESS") {
@@ -116,11 +122,11 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── Polling automatique après fermeture iframe 3DS ──────────────
+  // ── Polling après que le client revient et clique "J'ai terminé" ──
   const handle3DsComplete = async () => {
-    setThreeDsOpen(false);
+    setThreeDsPending(false);
     setPolling(true);
-    toast.info("Vérification du paiement en cours...");
+    toast.info("Vérification du paiement...");
 
     const orderId = order?.id || localStorage.getItem("pending_order_id");
     if (!orderId) {
@@ -129,7 +135,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Interroge le backend toutes les 2s pendant 30s max
     let attempts = 0;
     const maxAttempts = 15;
 
@@ -143,25 +148,22 @@ export default function CheckoutPage() {
           orderData.status === "PAID" ||
           orderData.payment?.status === "SUCCESS"
         ) {
-          // Paiement confirmé → rediriger vers commandes
           clearInterval(interval);
           localStorage.removeItem("pending_order_id");
           setPolling(false);
-          toast.success("✓ Paiement confirmé ! Redirection...");
+          toast.success("✓ Paiement confirmé !");
           setTimeout(() => navigate("/orders"), 1000);
         } else if (orderData.status === "FAILED") {
-          // Paiement échoué
           clearInterval(interval);
           localStorage.removeItem("pending_order_id");
           setPolling(false);
           toast.error("Paiement échoué");
           navigate("/orders");
         } else if (attempts >= maxAttempts) {
-          // Timeout — on redirige quand même
           clearInterval(interval);
           localStorage.removeItem("pending_order_id");
           setPolling(false);
-          toast.info("Authentification terminée — vérifiez vos commandes");
+          toast.info("Vérifiez vos commandes");
           navigate("/orders");
         }
       } catch (err) {
@@ -257,148 +259,202 @@ export default function CheckoutPage() {
               <h2 className="checkout__section-title">
                 Informations de paiement
               </h2>
-              {order?.gimPayOrderUrl && (
-                <div className="checkout__paylink">
-                  <div className="checkout__paylink-header">
+
+              {/* ── Panneau d'attente 3DS ── */}
+              {threeDsPending && (
+                <div className="checkout__3ds-waiting">
+                  <div className="checkout__3ds-waiting-icon">
                     <svg
-                      width="16"
-                      height="16"
+                      width="32"
+                      height="32"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
                     >
-                      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-                      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
-                    <span>Option 1 — Paiement via GIM Pay PayLink</span>
                   </div>
-                  <p>Utilisez la page de paiement sécurisée GIM Pay :</p>
-                  <a
-                    href={order.gimPayOrderUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-outline checkout__paylink-btn"
+                  <h3>Authentification 3D Secure</h3>
+                  <p>
+                    Une fenêtre bancaire s'est ouverte dans un nouvel onglet.
+                  </p>
+                  <p>Saisissez votre code OTP puis revenez sur cette page.</p>
+                  <button
+                    className="btn-primary checkout__btn"
+                    onClick={handle3DsComplete}
+                    disabled={polling}
+                    style={{ marginTop: 24 }}
                   >
-                    Payer via GIM Pay PayLink →
-                  </a>
-                  <div className="checkout__or">
-                    <span>ou payer directement par carte ci-dessous</span>
-                  </div>
+                    {polling ? (
+                      <span className="spinner" />
+                    ) : (
+                      "✓ J'ai validé mon OTP — Vérifier le paiement"
+                    )}
+                  </button>
+                  <button
+                    className="btn-outline"
+                    onClick={() => {
+                      window.open(paymentResult.threeDsUrl, "_blank");
+                    }}
+                    style={{ marginTop: 12, fontSize: 12 }}
+                  >
+                    Rouvrir la fenêtre bancaire →
+                  </button>
                 </div>
               )}
-              <div className="checkout__direct-label">
-                {order?.gimPayOrderUrl ? "Option 2 — " : ""}Paiement direct par
-                carte
-              </div>
-              <form onSubmit={handlePayment}>
-                <div className="checkout__field">
-                  <label>Numéro de carte *</label>
-                  <input
-                    type="text"
-                    value={payment.pan}
-                    onChange={(e) =>
-                      setPayment((p) => ({
-                        ...p,
-                        pan: formatCard(e.target.value),
-                      }))
-                    }
-                    placeholder="xxxx xxxx xxxx xxxx"
-                    maxLength={19}
-                    required
-                  />
-                </div>
-                <div className="checkout__row">
-                  <div className="checkout__field">
-                    <label>Expiration * (MM/AA)</label>
-                    <input
-                      type="text"
-                      value={payment.dateExpiration}
-                      onChange={(e) =>
-                        setPayment((p) => ({
-                          ...p,
-                          dateExpiration: formatExpiry(e.target.value),
-                        }))
-                      }
-                      placeholder="xx/xx"
-                      maxLength={5}
-                      required
-                    />
-                  </div>
-                  <div className="checkout__field">
-                    <label>CVV *</label>
-                    <input
-                      type="text"
-                      value={payment.cvv2}
-                      onChange={(e) =>
-                        setPayment((p) => ({
-                          ...p,
-                          cvv2: e.target.value.replace(/\D/g, "").slice(0, 4),
-                        }))
-                      }
-                      placeholder="xxx"
-                      maxLength={4}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="checkout__3ds">
-                  <label className="checkout__toggle">
-                    <input
-                      type="checkbox"
-                      checked={!payment.disable3ds}
-                      onChange={(e) =>
-                        setPayment((p) => ({
-                          ...p,
-                          disable3ds: !e.target.checked,
-                        }))
-                      }
-                    />
-                    <div className="checkout__toggle-track">
-                      <div className="checkout__toggle-thumb" />
-                    </div>
-                    <div className="checkout__3ds-info">
-                      <span className="checkout__3ds-label">
-                        Authentification 3D Secure
-                        <span
-                          className={`checkout__3ds-status ${!payment.disable3ds ? "checkout__3ds-status--on" : "checkout__3ds-status--off"}`}
+
+              {/* ── Formulaire carte — masqué pendant l'attente 3DS ── */}
+              {!threeDsPending && (
+                <>
+                  {order?.gimPayOrderUrl && (
+                    <div className="checkout__paylink">
+                      <div className="checkout__paylink-header">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
                         >
-                          {!payment.disable3ds ? "ACTIVÉE" : "DÉSACTIVÉE"}
-                        </span>
-                      </span>
-                      <span className="checkout__3ds-desc">
-                        {payment.disable3ds
-                          ? "Paiement direct sans vérification supplémentaire"
-                          : "Une fenêtre de vérification bancaire s'ouvrira"}
-                      </span>
+                          <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+                          <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+                        </svg>
+                        <span>Option 1 — Paiement via GIM Pay PayLink</span>
+                      </div>
+                      <p>Utilisez la page de paiement sécurisée GIM Pay :</p>
+                      <a
+                        href={order.gimPayOrderUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-outline checkout__paylink-btn"
+                      >
+                        Payer via GIM Pay PayLink →
+                      </a>
+                      <div className="checkout__or">
+                        <span>ou payer directement par carte ci-dessous</span>
+                      </div>
                     </div>
-                  </label>
-                </div>
-                <div className="checkout__secure-note">
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                  Paiement crypté SSL · GIM Pay · Vos données sont protégées
-                </div>
-                <button
-                  type="submit"
-                  className="btn-primary checkout__btn"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="spinner" />
-                  ) : (
-                    `${payment.disable3ds ? "Payer" : "Payer avec 3D Secure"} — ${formatPrice(order?.totalAmount)}`
                   )}
-                </button>
-              </form>
+
+                  <div className="checkout__direct-label">
+                    {order?.gimPayOrderUrl ? "Option 2 — " : ""}Paiement direct
+                    par carte
+                  </div>
+
+                  <form onSubmit={handlePayment}>
+                    <div className="checkout__field">
+                      <label>Numéro de carte *</label>
+                      <input
+                        type="text"
+                        value={payment.pan}
+                        onChange={(e) =>
+                          setPayment((p) => ({
+                            ...p,
+                            pan: formatCard(e.target.value),
+                          }))
+                        }
+                        placeholder="5219 5702 4551 7691"
+                        maxLength={19}
+                        required
+                      />
+                    </div>
+                    <div className="checkout__row">
+                      <div className="checkout__field">
+                        <label>Expiration * (MM/AA)</label>
+                        <input
+                          type="text"
+                          value={payment.dateExpiration}
+                          onChange={(e) =>
+                            setPayment((p) => ({
+                              ...p,
+                              dateExpiration: formatExpiry(e.target.value),
+                            }))
+                          }
+                          placeholder="26/04"
+                          maxLength={5}
+                          required
+                        />
+                      </div>
+                      <div className="checkout__field">
+                        <label>CVV *</label>
+                        <input
+                          type="text"
+                          value={payment.cvv2}
+                          onChange={(e) =>
+                            setPayment((p) => ({
+                              ...p,
+                              cvv2: e.target.value
+                                .replace(/\D/g, "")
+                                .slice(0, 4),
+                            }))
+                          }
+                          placeholder="927"
+                          maxLength={4}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="checkout__3ds">
+                      <label className="checkout__toggle">
+                        <input
+                          type="checkbox"
+                          checked={!payment.disable3ds}
+                          onChange={(e) =>
+                            setPayment((p) => ({
+                              ...p,
+                              disable3ds: !e.target.checked,
+                            }))
+                          }
+                        />
+                        <div className="checkout__toggle-track">
+                          <div className="checkout__toggle-thumb" />
+                        </div>
+                        <div className="checkout__3ds-info">
+                          <span className="checkout__3ds-label">
+                            Authentification 3D Secure
+                            <span
+                              className={`checkout__3ds-status ${!payment.disable3ds ? "checkout__3ds-status--on" : "checkout__3ds-status--off"}`}
+                            >
+                              {!payment.disable3ds ? "ACTIVÉE" : "DÉSACTIVÉE"}
+                            </span>
+                          </span>
+                          <span className="checkout__3ds-desc">
+                            {payment.disable3ds
+                              ? "Paiement direct sans vérification supplémentaire"
+                              : "Une fenêtre bancaire s'ouvrira dans un nouvel onglet"}
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                    <div className="checkout__secure-note">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      </svg>
+                      Paiement crypté SSL · GIM Pay · Vos données sont protégées
+                    </div>
+                    <button
+                      type="submit"
+                      className="btn-primary checkout__btn"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <span className="spinner" />
+                      ) : (
+                        `${payment.disable3ds ? "Payer" : "Payer avec 3D Secure"} — ${formatPrice(order?.totalAmount)}`
+                      )}
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           )}
 
@@ -445,12 +501,6 @@ export default function CheckoutPage() {
                       <span>{paymentResult.systemReference}</span>
                     </div>
                   )}
-                {paymentResult?.challengeRequired && (
-                  <div className="checkout__confirm-row">
-                    <span>3D Secure</span>
-                    <span style={{ color: "var(--green)" }}>✓ Authentifié</span>
-                  </div>
-                )}
                 {order?.gimPayOrderId && (
                   <div className="checkout__confirm-row">
                     <span>GIM Pay ID</span>
@@ -512,66 +562,6 @@ export default function CheckoutPage() {
           )}
         </div>
       </div>
-
-      {/* ── MODAL 3D SECURE ── */}
-      {threeDsOpen && paymentResult?.threeDsUrl && (
-        <div className="checkout__3ds-modal">
-          <div className="checkout__3ds-modal-inner">
-            <div className="checkout__3ds-modal-header">
-              <div className="checkout__3ds-modal-title">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                Authentification 3D Secure
-              </div>
-              <span className="checkout__3ds-modal-sub">
-                Complétez la vérification bancaire pour finaliser votre paiement
-              </span>
-            </div>
-            <iframe
-              src={paymentResult.threeDsUrl}
-              title="3D Secure Authentication"
-              className="checkout__3ds-iframe"
-              allow="payment"
-            />
-            <div className="checkout__3ds-modal-footer">
-              <div className="checkout__3ds-info-note">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                Après avoir saisi votre OTP, cliquez sur le bouton ci-dessous
-              </div>
-              <button
-                className="btn-primary"
-                onClick={handle3DsComplete}
-                disabled={polling}
-              >
-                {polling ? (
-                  <span className="spinner" />
-                ) : (
-                  "✓ J'ai terminé l'authentification"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
