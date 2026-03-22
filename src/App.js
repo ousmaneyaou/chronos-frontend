@@ -46,7 +46,6 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Footer />
@@ -58,68 +57,156 @@ function Footer() {
   return (
     <footer
       style={{
-        borderTop: "1px solid var(--gray-dim)",
-        padding: "40px 24px",
-        textAlign: "center",
-        marginTop: "auto",
+        background: "var(--charcoal)",
+        borderTop: "0.5px solid rgba(200,196,190,0.12)",
+        padding: "60px 60px 40px",
       }}
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            marginBottom: 16,
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr 1fr 1fr",
+            gap: 60,
+            marginBottom: 60,
           }}
         >
-          <span style={{ color: "var(--gold)", fontSize: "1rem" }}>◈</span>
-          <span
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: 12,
-              letterSpacing: "6px",
-              color: "var(--white)",
-              textTransform: "uppercase",
-            }}
-          >
-            CHRONOS
-          </span>
-        </div>
-        <p style={{ fontSize: 11, color: "var(--gray)", letterSpacing: 1 }}>
-          Haute Horlogerie · Paiements sécurisés par GIM Pay
-        </p>
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            justifyContent: "center",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
-          {[
-            "InitiateOrder ✓",
-            "PayByCard 3DS ON ✓",
-            "PayByCard 3DS OFF ✓",
-            "Webhook ✓",
-          ].map((item) => (
+          {/* Brand */}
+          <div>
             <span
-              key={item}
               style={{
-                fontSize: 9,
-                letterSpacing: 1.5,
-                padding: "3px 10px",
-                border: "1px solid var(--gray-dim)",
-                borderRadius: 2,
-                color: "var(--gray)",
+                fontFamily: "var(--font-display)",
+                fontSize: 24,
+                fontWeight: 300,
+                letterSpacing: 8,
                 textTransform: "uppercase",
+                color: "var(--white)",
+                display: "block",
+                marginBottom: 20,
               }}
             >
-              {item}
+              Velour
             </span>
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 300,
+                color: "var(--silver)",
+                lineHeight: 2.2,
+                maxWidth: 240,
+              }}
+            >
+              Haute Parfumerie d'exception. Créée avec passion, portée avec
+              élégance.
+            </p>
+          </div>
+
+          {/* Liens */}
+          {[
+            {
+              title: "Collections",
+              links: ["Femme", "Homme", "Unisexe", "Éditions limitées"],
+            },
+            {
+              title: "Maison",
+              links: [
+                "Notre histoire",
+                "Savoir-faire",
+                "Ingrédients",
+                "Atelier",
+              ],
+            },
+            {
+              title: "Service",
+              links: ["Livraison", "Retours", "Contact", "FAQ"],
+            },
+          ].map((col) => (
+            <div key={col.title}>
+              <h4
+                style={{
+                  fontSize: 9,
+                  fontWeight: 300,
+                  letterSpacing: 4,
+                  textTransform: "uppercase",
+                  color: "var(--silver)",
+                  marginBottom: 20,
+                }}
+              >
+                {col.title}
+              </h4>
+              <ul
+                style={{
+                  listStyle: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                {col.links.map((l) => (
+                  <li key={l}>
+                    <a
+                      href="#"
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 300,
+                        letterSpacing: 1,
+                        color: "rgba(200,196,190,0.55)",
+                        transition: "color 0.3s",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.target.style.color = "var(--white)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.target.style.color = "rgba(200,196,190,0.55)")
+                      }
+                    >
+                      {l}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
+        </div>
+
+        {/* Bottom */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderTop: "0.5px solid rgba(200,196,190,0.12)",
+            paddingTop: 28,
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 10,
+              fontWeight: 300,
+              color: "rgba(200,196,190,0.35)",
+              letterSpacing: 2,
+            }}
+          >
+            © 2025 Velour · Haute Parfumerie
+          </p>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {["Parfums ✓", "3DS ON ✓", "3DS OFF ✓", "GIM Pay ✓"].map((item) => (
+              <span
+                key={item}
+                style={{
+                  fontSize: 8,
+                  letterSpacing: 2,
+                  padding: "3px 10px",
+                  border: "0.5px solid rgba(200,196,190,0.15)",
+                  color: "rgba(200,196,190,0.35)",
+                }}
+              >
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </footer>

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import "./Navbar.css";
 
 export default function Navbar() {
-  const { user, logout, cartCount } = useApp();
+  const { user, cart, logout } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -16,63 +16,54 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [location]);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const isActive = (path) => location.pathname === path;
 
   return (
     <nav className={`navbar ${scrolled ? "navbar--scrolled" : ""}`}>
       <div className="navbar__inner">
-        {/* Logo */}
         <Link to="/" className="navbar__logo">
-          <span className="navbar__logo-icon">◈</span>
-          <span className="navbar__logo-text">WATCHSTORE</span>
+          Velour
         </Link>
 
-        {/* Nav links */}
         <ul
           className={`navbar__links ${menuOpen ? "navbar__links--open" : ""}`}
         >
           <li>
-            <Link to="/" className={location.pathname === "/" ? "active" : ""}>
+            <Link to="/" className={isActive("/") ? "active" : ""}>
               Collection
             </Link>
           </li>
+          <li>
+            <Link to="/#maison" className="">
+              Maison
+            </Link>
+          </li>
+          <li>
+            <Link to="/#ingredients" className="">
+              Ingrédients
+            </Link>
+          </li>
           {user && (
-            <>
-              <li>
-                <Link
-                  to="/cart"
-                  className={location.pathname === "/cart" ? "active" : ""}
-                >
-                  Panier
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/orders"
-                  className={location.pathname === "/orders" ? "active" : ""}
-                >
-                  Commandes
-                </Link>
-              </li>
-            </>
+            <li>
+              <Link
+                to="/orders"
+                className={isActive("/orders") ? "active" : ""}
+              >
+                Commandes
+              </Link>
+            </li>
           )}
         </ul>
 
-        {/* Actions */}
         <div className="navbar__actions">
           {user ? (
             <>
+              <span className="navbar__user">{user.firstName}</span>
               <Link to="/cart" className="navbar__cart">
                 <svg
-                  width="20"
-                  height="20"
+                  width="18"
+                  height="18"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -83,47 +74,46 @@ export default function Navbar() {
                   <path d="M16 10a4 4 0 01-8 0" />
                 </svg>
                 {cartCount > 0 && (
-                  <span className="navbar__cart-badge">{cartCount}</span>
+                  <span className="navbar__cart-count">{cartCount}</span>
                 )}
               </Link>
-              <div className="navbar__user">
-                <span className="navbar__user-name">{user.firstName}</span>
-                <button onClick={handleLogout} className="navbar__logout">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-                  </svg>
-                </button>
-              </div>
+              <button
+                className="navbar__logout"
+                onClick={() => {
+                  logout();
+                  navigate("/");
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
             </>
           ) : (
-            <Link
-              to="/login"
-              className="btn-outline"
-              style={{ padding: "8px 20px", fontSize: "10px" }}
-            >
+            <button className="navbar__btn" onClick={() => navigate("/login")}>
               Connexion
-            </Link>
+            </button>
           )}
-          <button
-            className="navbar__burger"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
         </div>
-      </div>
 
-      {/* Gold line */}
-      <div className="navbar__line" />
+        <button
+          className="navbar__burger"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </div>
     </nav>
   );
 }
