@@ -6,25 +6,19 @@ import { toast } from "react-toastify";
 import "./LoginPage.css";
 
 export default function LoginPage() {
-  const { login, user } = useApp();
+  const { setUser } = useApp();
   const navigate = useNavigate();
-  const [mode, setMode] = useState("login"); // 'login' | 'register'
-  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    email: "",
     firstName: "",
     lastName: "",
+    email: "",
     phone: "",
     address: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState("login"); // login | register
 
-  // Si déjà connecté, rediriger
-  if (user) {
-    navigate("/");
-    return null;
-  }
-
-  const onChange = (e) =>
+  const handleChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
@@ -33,47 +27,14 @@ export default function LoginPage() {
       toast.error("Email requis");
       return;
     }
-
     setLoading(true);
     try {
-      if (mode === "register") {
-        if (!form.firstName || !form.lastName) {
-          toast.error("Prénom et nom requis");
-          setLoading(false);
-          return;
-        }
-        const res = await userApi.create(form);
-        login(res.data);
-        toast.success(`Bienvenue, ${res.data.firstName} !`);
-        navigate("/");
-      } else {
-        // Login : recherche par email (simplifié, pas de vrai auth)
-        // Dans ce cas on crée si n'existe pas, sinon on récupère
-        try {
-          const res = await userApi.create({
-            ...form,
-            firstName: form.firstName || "Client",
-            lastName: form.lastName || "",
-          });
-          login(res.data);
-          toast.success(`Connecté en tant que ${res.data.firstName}`);
-          navigate("/");
-        } catch (err) {
-          // Email déjà utilisé → simuler une connexion
-          if (
-            err.response?.status === 400 ||
-            err.response?.data?.includes?.("Email")
-          ) {
-            toast.error(
-              "Cet email est déjà utilisé. Utilisez un autre email ou inscrivez-vous.",
-            );
-          } else {
-            toast.error("Erreur de connexion");
-          }
-        }
-      }
+      const res = await userApi.create(form);
+      setUser(res.data);
+      toast.success(`Bienvenue, ${res.data.firstName} ✦`);
+      navigate("/");
     } catch (err) {
-      toast.error(err.response?.data || "Une erreur est survenue");
+      toast.error(err.response?.data?.message || "Erreur de connexion");
     } finally {
       setLoading(false);
     }
@@ -81,82 +42,81 @@ export default function LoginPage() {
 
   return (
     <div className="login">
-      <div className="login__bg" />
+      <div className="login__bg">
+        <div className="login__circle login__circle--1" />
+        <div className="login__circle login__circle--2" />
+      </div>
+
       <div className="login__card fade-up">
-        {/* Logo */}
-        <div className="login__logo">
-          <span className="login__logo-icon">◈</span>
-          <span className="login__logo-text">WATCHSTORE</span>
+        <div className="login__header">
+          <div className="login__logo">◈ AURUM</div>
+          <h1 className="login__title">
+            {mode === "login" ? "Rejoindre le" : "Créer votre"}
+            <br />
+            <em>cercle d'exception</em>
+          </h1>
+          <p className="login__sub">
+            {mode === "login"
+              ? "Connectez-vous pour accéder à votre espace AURUM"
+              : "Rejoignez notre cercle de beauté et bénéficiez de soins exclusifs"}
+          </p>
         </div>
 
-        <div className="divider-gold" />
+        <form className="login__form" onSubmit={handleSubmit}>
+          {mode === "register" && (
+            <div className="login__row">
+              <div className="login__field">
+                <label>Prénom *</label>
+                <input
+                  name="firstName"
+                  value={form.firstName}
+                  onChange={handleChange}
+                  placeholder="Aminata"
+                  required
+                />
+              </div>
+              <div className="login__field">
+                <label>Nom</label>
+                <input
+                  name="lastName"
+                  value={form.lastName}
+                  onChange={handleChange}
+                  placeholder="Diallo"
+                />
+              </div>
+            </div>
+          )}
 
-        <h2 className="login__title">
-          {mode === "login" ? "Connexion" : "Créer un compte"}
-        </h2>
-        <p className="login__subtitle">
-          {mode === "login"
-            ? "Entrez votre email pour accéder à votre espace"
-            : "Rejoignez notre cercle de passionnés de montre"}
-        </p>
-
-        <form onSubmit={handleSubmit} className="login__form">
           <div className="login__field">
-            <label>Adresse email *</label>
+            <label>Email *</label>
             <input
               type="email"
               name="email"
               value={form.email}
-              onChange={onChange}
-              placeholder="votre@email.com"
+              onChange={handleChange}
+              placeholder="aminata@aurum.sn"
               required
             />
           </div>
 
           {mode === "register" && (
             <>
-              <div className="login__row">
-                <div className="login__field">
-                  <label>Prénom *</label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={form.firstName}
-                    onChange={onChange}
-                    placeholder="Texte..."
-                    required
-                  />
-                </div>
-                <div className="login__field">
-                  <label>Nom *</label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={form.lastName}
-                    onChange={onChange}
-                    placeholder="Texte..."
-                    required
-                  />
-                </div>
-              </div>
               <div className="login__field">
                 <label>Téléphone</label>
                 <input
-                  type="tel"
                   name="phone"
                   value={form.phone}
-                  onChange={onChange}
-                  placeholder="+221 77 ___ __ __"
+                  onChange={handleChange}
+                  placeholder="+221 77 123 45 67"
                 />
               </div>
               <div className="login__field">
                 <label>Adresse de livraison</label>
                 <input
-                  type="text"
                   name="address"
                   value={form.address}
-                  onChange={onChange}
-                  placeholder="Votre adresse complète"
+                  onChange={handleChange}
+                  placeholder="Medina, Dakar, Sénégal"
                 />
               </div>
             </>
@@ -170,32 +130,30 @@ export default function LoginPage() {
             {loading ? (
               <span className="spinner" />
             ) : mode === "login" ? (
-              "Se connecter"
+              "Accéder à mon espace →"
             ) : (
-              "Créer mon compte"
+              "Créer mon compte →"
             )}
           </button>
         </form>
 
         <div className="login__switch">
           {mode === "login" ? (
-            <p>
-              Pas encore de compte ?
+            <>
+              Première visite ?{" "}
               <button onClick={() => setMode("register")}>
-                {" "}
                 Créer un compte
               </button>
-            </p>
+            </>
           ) : (
-            <p>
-              Déjà un compte ?
-              <button onClick={() => setMode("login")}> Se connecter</button>
-            </p>
+            <>
+              Déjà membre ?{" "}
+              <button onClick={() => setMode("login")}>Se connecter</button>
+            </>
           )}
         </div>
 
-        {/* Note sécurité */}
-        <div className="login__note">
+        <div className="login__secure">
           <svg
             width="12"
             height="12"
@@ -206,7 +164,7 @@ export default function LoginPage() {
           >
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          Paiements sécurisés par GIM Pay
+          Connexion sécurisée · Données protégées
         </div>
       </div>
     </div>

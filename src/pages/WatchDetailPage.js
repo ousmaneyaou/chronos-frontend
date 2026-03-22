@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { watchApi } from "../services/api";
+import { watchApi, cartApi } from "../services/api";
 import { useApp } from "../context/AppContext";
+import { toast } from "react-toastify";
 import "./WatchDetailPage.css";
 
 export default function WatchDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart, user } = useApp();
-  const [watch, setWatch] = useState(null);
+  const { user, loadCart } = useApp();
+  const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const [qty, setQty] = useState(1);
 
   useEffect(() => {
     watchApi
       .getById(id)
-      .then((r) => setWatch(r.data))
+      .then((r) => setProduct(r.data))
       .catch(() => navigate("/"))
       .finally(() => setLoading(false));
   }, [id, navigate]);
@@ -27,157 +27,116 @@ export default function WatchDetailPage() {
       style: "currency",
       currency: "XOF",
       maximumFractionDigits: 0,
-    }).format(p);
+    }).format(p || 0);
 
-  const handleAdd = async () => {
+  const handleAddToCart = async () => {
     if (!user) {
       navigate("/login");
       return;
     }
     setAdding(true);
-    await addToCart(watch.id, quantity);
-    setAdding(false);
+    try {
+      await cartApi.addItem(user.id, { watchId: product.id, quantity: qty });
+      await loadCart();
+      toast.success(`✓ ${product.name} ajouté au panier`);
+    } catch {
+      toast.error("Erreur lors de l'ajout au panier");
+    } finally {
+      setAdding(false);
+    }
   };
 
   if (loading)
     return (
-      <div className="detail-loading container">
-        <div className="skeleton" style={{ height: 500, marginBottom: 24 }} />
-        <div
-          className="skeleton"
-          style={{ height: 32, width: "50%", marginBottom: 16 }}
-        />
-        <div className="skeleton" style={{ height: 20, width: "30%" }} />
+      <div className="detail-loading">
+        <div className="skeleton" style={{ height: "60vh" }} />
       </div>
     );
 
-  if (!watch) return null;
+  if (!product) return null;
 
-  const specs = [
-    { label: "Référence", value: watch.reference },
-    { label: "Matériau", value: watch.material },
-    { label: "Mouvement", value: watch.movement },
-    { label: "Résistance à l'eau", value: watch.waterResistance },
-    { label: "Catégorie", value: watch.categoryName },
-  ].filter((s) => s.value);
+  const ingredients =
+    product.description?.split(",").map((s) => s.trim()) || [];
 
   return (
     <div className="detail">
-      <div className="container">
-        {/* Breadcrumb */}
-        <nav className="detail__breadcrumb fade-in">
-          <button onClick={() => navigate("/")} className="btn-ghost">
-            ← Collection
-          </button>
-          <span className="detail__breadcrumb-sep">/</span>
-          <span>{watch.brand}</span>
-        </nav>
-
-        <div className="detail__grid">
-          {/* Image */}
-          <div className="detail__image-wrap fade-in">
-            {!imgError ? (
-              <img
-                src={watch.imageUrl}
-                alt={watch.name}
-                onError={() => setImgError(true)}
-                className="detail__image"
-              />
+      <div className="detail__inner">
+        {/* Image */}
+        <div className="detail__media">
+          <div className="detail__img-wrap">
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt={product.name} />
             ) : (
-              <div className="detail__image-placeholder">◈</div>
+              <div className="detail__placeholder">◈</div>
             )}
-            {/* Floating label */}
-            <div className="detail__image-label">
-              <span>{watch.brand}</span>
-            </div>
           </div>
+          <div className="detail__corner detail__corner--tl" />
+          <div className="detail__corner detail__corner--br" />
+        </div>
 
-          {/* Info */}
-          <div className="detail__info fade-up">
-            <span className="detail__brand">{watch.brand}</span>
-            <h1 className="detail__name">{watch.name}</h1>
+        {/* Infos */}
+        <div className="detail__info fade-up">
+          <div className="detail__category">{product.category?.name}</div>
+          <div className="detail__brand">{product.brand}</div>
+          <h1 className="detail__name">{product.name}</h1>
+          <div className="divider-gold" />
+          <p className="detail__desc">{product.description}</p>
 
-            <div className="divider-gold" style={{ margin: "24px 0" }} />
-
-            <div className="detail__price">{formatPrice(watch.price)}</div>
-
-            {watch.description && (
-              <p className="detail__description">{watch.description}</p>
-            )}
-
-            {/* Specs */}
-            {specs.length > 0 && (
-              <div className="detail__specs">
-                {specs.map((s) => (
-                  <div key={s.label} className="detail__spec">
-                    <span className="detail__spec-label">{s.label}</span>
-                    <span className="detail__spec-value">{s.value}</span>
-                  </div>
+          {/* Ingrédients */}
+          {ingredients.length > 1 && (
+            <div className="detail__ingredients">
+              <div className="detail__ingredients-title">Ingrédients clés</div>
+              <div className="detail__ingredients-list">
+                {ingredients.map((ing, i) => (
+                  <span key={i} className="detail__ingredient">
+                    {ing}
+                  </span>
                 ))}
               </div>
-            )}
-
-            {/* Stock */}
-            <div className="detail__stock">
-              {watch.stock > 5 ? (
-                <span className="badge badge-green">En stock</span>
-              ) : watch.stock > 0 ? (
-                <span className="badge badge-gold">
-                  Plus que {watch.stock} en stock
-                </span>
-              ) : (
-                <span className="badge badge-red">Épuisé</span>
-              )}
             </div>
+          )}
 
-            {/* Quantity + Add */}
-            {watch.stock > 0 && (
-              <div className="detail__actions">
-                <div className="detail__qty">
-                  <button
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  >
-                    −
-                  </button>
-                  <span>{quantity}</span>
-                  <button
-                    onClick={() =>
-                      setQuantity((q) => Math.min(watch.stock, q + 1))
-                    }
-                  >
-                    +
-                  </button>
-                </div>
+          <div className="detail__price">{formatPrice(product.price)}</div>
+
+          {/* Stock */}
+          <div className="detail__stock">
+            {product.stock > 0 ? (
+              <span className="detail__stock-ok">
+                <span className="detail__stock-dot" /> En stock
+                {product.stock <= 5 && ` · Plus que ${product.stock}`}
+              </span>
+            ) : (
+              <span className="detail__stock-out">Épuisé</span>
+            )}
+          </div>
+
+          {/* Quantité + Ajouter */}
+          {product.stock > 0 && (
+            <div className="detail__actions">
+              <div className="detail__qty">
+                <button onClick={() => setQty((q) => Math.max(1, q - 1))}>
+                  −
+                </button>
+                <span>{qty}</span>
                 <button
-                  className="btn-primary detail__add-btn"
-                  onClick={handleAdd}
-                  disabled={adding}
+                  onClick={() => setQty((q) => Math.min(product.stock, q + 1))}
                 >
-                  {adding ? (
-                    <span className="spinner" />
-                  ) : (
-                    <>
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      >
-                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <path d="M16 10a4 4 0 01-8 0" />
-                      </svg>
-                      Ajouter au panier
-                    </>
-                  )}
+                  +
                 </button>
               </div>
-            )}
+              <button
+                className="btn-primary detail__add"
+                onClick={handleAddToCart}
+                disabled={adding}
+              >
+                {adding ? <span className="spinner" /> : "Ajouter au panier →"}
+              </button>
+            </div>
+          )}
 
-            {/* Secure payment note */}
-            <div className="detail__secure">
+          {/* Sécurité */}
+          <div className="detail__secure">
+            <div className="detail__secure-item">
               <svg
                 width="14"
                 height="14"
@@ -188,7 +147,23 @@ export default function WatchDetailPage() {
               >
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
-              <span>Paiement sécurisé · GIM Pay · 3D Secure disponible</span>
+              Paiement sécurisé GIM Pay
+            </div>
+            <div className="detail__secure-item">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <rect x="1" y="3" width="15" height="13" />
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                <circle cx="5.5" cy="18.5" r="2.5" />
+                <circle cx="18.5" cy="18.5" r="2.5" />
+              </svg>
+              Livraison soignée
             </div>
           </div>
         </div>

@@ -5,117 +5,70 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { cartApi, userApi } from "../services/api";
-import { toast } from "react-toastify";
+import { cartApi } from "../services/api";
 
-const AppContext = createContext();
+const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("chronos_user");
-    return saved ? JSON.parse(saved) : null;
+  const [user, setUserState] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("aurum_user"));
+    } catch {
+      return null;
+    }
   });
   const [cart, setCart] = useState([]);
-  const [cartLoading, setCartLoading] = useState(false);
+  const [cartTotal, setCartTotal] = useState(0);
 
-  // Charger le panier quand l'utilisateur change
+  const setUser = (u) => {
+    setUserState(u);
+    if (u) {
+      localStorage.setItem("aurum_user", JSON.stringify(u));
+    } else {
+      localStorage.removeItem("aurum_user");
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setCart([]);
+    setCartTotal(0);
+  };
+
   const loadCart = useCallback(async () => {
-    if (!user) {
+    if (!user?.id) {
       setCart([]);
+      setCartTotal(0);
       return;
     }
-    setCartLoading(true);
     try {
       const res = await cartApi.getCart(user.id);
-      setCart(res.data || []);
+      const items = res.data?.items || res.data || [];
+      setCart(items);
+      setCartTotal(items.reduce((sum, i) => sum + (i.subtotal || 0), 0));
     } catch {
       setCart([]);
-    } finally {
-      setCartLoading(false);
+      setCartTotal(0);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     loadCart();
   }, [loadCart]);
 
-  // Sauvegarder user dans localStorage
-  const login = (userData) => {
-    setUser(userData);
-    localStorage.setItem("chronos_user", JSON.stringify(userData));
-  };
-  const logout = () => {
-    setUser(null);
-    setCart([]);
-    localStorage.removeItem("chronos_user");
-  };
-
-  // Ajouter au panier
-  const addToCart = async (watchId, quantity = 1) => {
-    if (!user) {
-      toast.error("Veuillez créer un compte");
-      return false;
-    }
-    try {
-      await cartApi.addItem(user.id, { watchId, quantity });
-      await loadCart();
-      toast.success("Ajouté au panier");
-      return true;
-    } catch (e) {
-      toast.error(e.response?.data?.message || "Erreur panier");
-      return false;
-    }
-  };
-
-  // Mettre à jour quantité
-  const updateCartItem = async (itemId, quantity) => {
-    if (!user) return;
-    try {
-      await cartApi.updateItem(itemId, user.id, { quantity });
-      await loadCart();
-    } catch (e) {
-      toast.error("Erreur mise à jour");
-    }
-  };
-
-  // Retirer du panier
-  const removeFromCart = async (itemId) => {
-    if (!user) return;
-    try {
-      await cartApi.removeItem(itemId, user.id);
-      await loadCart();
-      toast.success("Retiré du panier");
-    } catch {
-      toast.error("Erreur");
-    }
-  };
-
-  // Total panier
-  const cartTotal = cart.reduce(
-    (sum, item) => sum + parseFloat(item.subtotal || 0),
-    0,
-  );
-  const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const cartCount = cart.reduce((sum, i) => sum + (i.quantity || 0), 0);
 
   return (
     <AppContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        cart,
-        cartLoading,
-        cartTotal,
-        cartCount,
-        addToCart,
-        updateCartItem,
-        removeFromCart,
-        loadCart,
-      }}
+      value={{ user, setUser, logout, cart, cartTotal, cartCount, loadCart }}
     >
       {children}
     </AppContext.Provider>
   );
 }
 
-export const useApp = () => useContext(AppContext);
+export const useApp = () => {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
+};

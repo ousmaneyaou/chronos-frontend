@@ -1,116 +1,20 @@
-.watch-card {
-  background: var(--black-card);
-  border: 1px solid var(--gray-dim);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  cursor: pointer;
-  transition: all var(--transition);
-  animation: fadeUp 0.5s ease both;
-}
-.watch-card:hover {
-  border-color: var(--gold-dark);
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-card), var(--shadow-gold);
-}
-
-/* Image */
-.watch-card__image-wrap {
-  position: relative;
-  aspect-ratio: 1;
-  overflow: hidden;
-  background: var(--black-mid);
-}
-.watch-card__image {
-  width: 100%; height: 100%;
-  object-fit: cover;
-  transition: transform var(--transition-slow);
-}
-.watch-card:hover .watch-card__image { transform: scale(1.05); }
-.watch-card__image-placeholder {
-  width: 100%; height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--gold-dark);
-  font-size: 3rem;
-  opacity: 0.3;
-}
-
-/* Overlay */
-.watch-card__overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(10, 10, 10, 0.7);
-  display: flex;
-  align-items: flex-end;
-  padding: 16px;
-  opacity: 0;
-  transition: opacity var(--transition);
-}
-.watch-card:hover .watch-card__overlay { opacity: 1; }
-.watch-card__overlay-btn {
-  width: 100%;
-  padding: 10px;
-  background: var(--gold);
-  color: var(--black);
-  font-family: var(--font-body);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 38px;
-}
-.watch-card__overlay-btn:hover:not(:disabled) { background: var(--gold-light); }
-.watch-card__overlay-btn:disabled { background: var(--gray-dim); color: var(--gray); cursor: not-allowed; }
-
-/* Stock badge */
-.watch-card__stock-badge {
-  position: absolute;
-  top: 12px; right: 12px;
-  background: rgba(201, 168, 76, 0.9);
-  color: var(--black);
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 1px;
-  padding: 3px 8px;
-  border-radius: 2px;
-  text-transform: uppercase;
-}
-.watch-card__stock-badge--empty {
-  background: rgba(201, 76, 76, 0.9);
-  color: var(--white);
-}
-
-/* Info */
-.watch-card__info {
-  padding: 16px;
-}
-.watch-card__brand {
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin-bottom: 4px;
-}
-.watch-card__name {
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  font-weight: 400;
-  color: var(--white);
-  margin-bottom: 12px;
-  line-height: 1.3;
-}
-.watch-card__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+.product-card{background:var(--noir2);cursor:pointer;position:relative;overflow:hidden;transition:transform .5s cubic-bezier(.25,.46,.45,.94);display:flex;flex-direction:column}
+.product-card:hover{transform:translateY(-6px)}
+.product-card:hover .product-card__overlay{opacity:1}
+.product-card:hover img{transform:scale(1.06)}
+.product-card:hover .product-card__add{opacity:1;transform:translateY(0)}
+.product-card__img{aspect-ratio:1/1;overflow:hidden;position:relative;background:var(--noir3)}
+.product-card__img img{width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.25,.46,.45,.94)}
+.product-card__placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--noir3),#1a1525);font-size:48px;color:rgba(200,169,110,.2)}
+.product-card__overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(5,4,10,.9) 0%,transparent 60%);opacity:.6;transition:opacity .4s}
+.product-card__category{position:absolute;top:16px;left:16px;font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--or);background:rgba(5,4,10,.8);padding:4px 10px;border:1px solid rgba(200,169,110,.2)}
+.product-card__stock-badge{position:absolute;top:16px;right:16px;font-size:8px;letter-spacing:2px;text-transform:uppercase;background:rgba(200,169,110,.15);color:var(--or);border:1px solid rgba(200,169,110,.3);padding:4px 10px}
+.product-card__stock-badge--out{background:rgba(229,57,53,.1);color:#ef9a9a;border-color:rgba(229,57,53,.3)}
+.product-card__body{padding:24px;flex:1;display:flex;flex-direction:column;gap:6px}
+.product-card__brand{font-size:8px;letter-spacing:4px;text-transform:uppercase;color:var(--or);opacity:.7}
+.product-card__name{font-family:var(--font-display);font-size:20px;font-weight:300;color:var(--creme);line-height:1.2}
+.product-card__desc{font-size:11px;color:rgba(240,232,213,.45);line-height:1.7;font-weight:200;flex:1;margin-top:4px}
+.product-card__footer{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid rgba(200,169,110,.1)}
+.product-card__add{width:36px;height:36px;background:rgba(200,169,110,.1);border:1px solid rgba(200,169,110,.3);color:var(--or);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;opacity:.6;transform:translateY(4px)}
+.product-card__add:hover:not(:disabled){background:var(--or);border-color:var(--or);color:var(--noir);opacity:1}
+.product-card__add:disabled{opacity:.2;cursor:not-allowed}

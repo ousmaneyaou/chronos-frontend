@@ -17,9 +17,8 @@ const STATUS_MAP = {
 
 const getPaymentLabel = (payment) => {
   if (!payment) return null;
-  if (payment.actionCode === "909") {
+  if (payment.actionCode === "909")
     return { label: "Traitée (test)", cls: "badge-gold" };
-  }
   const map = {
     INITIATED: { label: "Initiée", cls: "badge-gray" },
     PENDING: { label: "En cours", cls: "badge-gold" },
@@ -30,7 +29,6 @@ const getPaymentLabel = (payment) => {
   return map[payment.status] || { label: payment.status, cls: "badge-gray" };
 };
 
-// ← Vrai si le paiement est déjà finalisé — cache le bouton "Reprendre 3DS"
 const isPaidOrSuccess = (order) =>
   order.status === "PAID" || order.payment?.status === "SUCCESS";
 
@@ -120,11 +118,6 @@ export default function OrdersPage() {
               const payLabel = getPaymentLabel(order.payment);
               const isOpen = expanded === order.id;
               const is909 = order.payment?.actionCode === "909";
-
-              // ← Bouton 3DS visible seulement si :
-              // 1. challengeRequired = true (3DS demandé)
-              // 2. threeDsUrl existe
-              // 3. La commande n'est PAS encore payée
               const show3dsButton =
                 order.payment?.challengeRequired &&
                 order.payment?.threeDsUrl &&
@@ -149,7 +142,6 @@ export default function OrdersPage() {
                         {formatDate(order.createdAt)}
                       </div>
                     </div>
-
                     <div className="orders__item-center">
                       {is909 ? (
                         <span className="badge badge-gold">Traitée</span>
@@ -164,7 +156,6 @@ export default function OrdersPage() {
                         </span>
                       )}
                     </div>
-
                     <div className="orders__item-right">
                       <span className="price-small">
                         {formatPrice(order.totalAmount)}
@@ -188,7 +179,7 @@ export default function OrdersPage() {
                       <div className="orders__item-grid">
                         {/* Articles */}
                         <div className="orders__detail-section">
-                          <h4 className="orders__detail-title">Articles</h4>
+                          <h4 className="orders__detail-title">Produits</h4>
                           {order.items?.length > 0 ? (
                             order.items.map((item) => (
                               <div key={item.id} className="orders__article">
@@ -210,7 +201,7 @@ export default function OrdersPage() {
                             ))
                           ) : (
                             <p className="orders__empty-items">
-                              Articles non disponibles
+                              Produits non disponibles
                             </p>
                           )}
                         </div>
@@ -267,7 +258,6 @@ export default function OrdersPage() {
                         {order.payment && (
                           <div className="orders__detail-section">
                             <h4 className="orders__detail-title">Paiement</h4>
-
                             <div className="orders__info-row">
                               <span>Méthode</span>
                               <span>
@@ -278,7 +268,6 @@ export default function OrdersPage() {
                                     : "—"}
                               </span>
                             </div>
-
                             {order.payment.actionCode && (
                               <div className="orders__info-row">
                                 <span>Code action</span>
@@ -299,7 +288,6 @@ export default function OrdersPage() {
                                 </span>
                               </div>
                             )}
-
                             {order.payment.systemReference &&
                               order.payment.systemReference !== "0" && (
                                 <div className="orders__info-row">
@@ -309,8 +297,6 @@ export default function OrdersPage() {
                                   </span>
                                 </div>
                               )}
-
-                            {/* ← Bouton 3DS — caché si déjà PAID ou SUCCESS */}
                             {show3dsButton && (
                               <div className="orders__3ds-section">
                                 <div className="orders__3ds-badge">

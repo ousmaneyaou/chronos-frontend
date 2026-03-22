@@ -1,89 +1,91 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import { cartApi } from "../services/api";
+import { toast } from "react-toastify";
 import "./WatchCard.css";
 
 export default function WatchCard({ watch }) {
-  const { addToCart, user } = useApp();
-  const [adding, setAdding] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const { user, loadCart } = useApp();
   const navigate = useNavigate();
-
-  const handleAdd = async (e) => {
-    e.stopPropagation();
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-    setAdding(true);
-    await addToCart(watch.id, 1);
-    setAdding(false);
-  };
 
   const formatPrice = (p) =>
     new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: "XOF",
       maximumFractionDigits: 0,
-    }).format(p);
+    }).format(p || 0);
+
+  const handleAddToCart = async (e) => {
+    e.stopPropagation();
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    try {
+      await cartApi.addItem(user.id, { watchId: watch.id, quantity: 1 });
+      await loadCart();
+      toast.success(`✓ ${watch.name} ajouté au panier`);
+    } catch {
+      toast.error("Erreur lors de l'ajout au panier");
+    }
+  };
 
   return (
-    <div className="watch-card" onClick={() => navigate(`/watch/${watch.id}`)}>
-      {/* Image */}
-      <div className="watch-card__image-wrap">
-        {!imgError ? (
-          <img
-            src={
-              watch.imageUrl ||
-              `https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400`
-            }
-            alt={watch.name}
-            onError={() => setImgError(true)}
-            className="watch-card__image"
-          />
+    <div
+      className="product-card"
+      onClick={() => navigate(`/watch/${watch.id}`)}
+    >
+      <div className="product-card__img">
+        {watch.imageUrl ? (
+          <img src={watch.imageUrl} alt={watch.name} loading="lazy" />
         ) : (
-          <div className="watch-card__image-placeholder">
+          <div className="product-card__placeholder">
             <span>◈</span>
           </div>
         )}
-        {/* Overlay */}
-        <div className="watch-card__overlay">
-          <button
-            className="watch-card__overlay-btn"
-            onClick={handleAdd}
-            disabled={adding || watch.stock === 0}
-          >
-            {adding ? (
-              <span className="spinner" />
-            ) : watch.stock === 0 ? (
-              "Épuisé"
-            ) : (
-              "Ajouter au panier"
-            )}
-          </button>
-        </div>
-        {/* Stock badge */}
-        {watch.stock <= 3 && watch.stock > 0 && (
-          <span className="watch-card__stock-badge">
+        <div className="product-card__overlay" />
+
+        {/* Badge catégorie */}
+        <div className="product-card__category">{watch.category?.name}</div>
+
+        {/* Stock faible */}
+        {watch.stock <= 5 && watch.stock > 0 && (
+          <div className="product-card__stock-badge">
             Plus que {watch.stock}
-          </span>
+          </div>
         )}
         {watch.stock === 0 && (
-          <span className="watch-card__stock-badge watch-card__stock-badge--empty">
+          <div className="product-card__stock-badge product-card__stock-badge--out">
             Épuisé
-          </span>
+          </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="watch-card__info">
-        <div className="watch-card__brand">{watch.brand}</div>
-        <h3 className="watch-card__name">{watch.name}</h3>
-        <div className="watch-card__footer">
+      <div className="product-card__body">
+        <div className="product-card__brand">{watch.brand}</div>
+        <h3 className="product-card__name">{watch.name}</h3>
+        <p className="product-card__desc">{watch.description}</p>
+
+        <div className="product-card__footer">
           <span className="price-small">{formatPrice(watch.price)}</span>
-          {watch.categoryName && (
-            <span className="badge badge-gray">{watch.categoryName}</span>
-          )}
+          <button
+            className="product-card__add"
+            onClick={handleAddToCart}
+            disabled={watch.stock === 0}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <line x1="12" y1="4" x2="12" y2="20" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>

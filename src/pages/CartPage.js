@@ -1,11 +1,12 @@
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { cartApi } from "../services/api";
 import { useApp } from "../context/AppContext";
+import { toast } from "react-toastify";
 import "./CartPage.css";
 
 export default function CartPage() {
-  const { cart, cartTotal, cartLoading, updateCartItem, removeFromCart, user } =
-    useApp();
+  const { user, cart, cartTotal, loadCart } = useApp();
   const navigate = useNavigate();
 
   const formatPrice = (p) =>
@@ -13,43 +14,55 @@ export default function CartPage() {
       style: "currency",
       currency: "XOF",
       maximumFractionDigits: 0,
-    }).format(p);
+    }).format(p || 0);
 
-  if (cartLoading)
-    return (
-      <div className="cart container">
-        <div className="cart__header fade-up">
-          <span className="section-label">Votre sélection</span>
-          <h1 className="section-title">Panier</h1>
-        </div>
-        {[1, 2].map((i) => (
-          <div
-            key={i}
-            className="skeleton"
-            style={{ height: 120, marginBottom: 12, borderRadius: 2 }}
-          />
-        ))}
-      </div>
-    );
+  const handleRemove = async (itemId) => {
+    try {
+      await cartApi.removeItem(itemId, user.id);
+      await loadCart();
+      toast.success("Produit retiré du panier");
+    } catch {
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const handleUpdateQty = async (itemId, qty) => {
+    if (qty < 1) {
+      handleRemove(itemId);
+      return;
+    }
+    try {
+      await cartApi.updateItem(itemId, user.id, { quantity: qty });
+      await loadCart();
+    } catch {
+      toast.error("Erreur lors de la mise à jour");
+    }
+  };
 
   if (!cart.length)
     return (
-      <div className="cart container fade-up">
-        <div className="cart__header">
-          <span className="section-label">Votre sélection</span>
-          <h1 className="section-title">Panier</h1>
-        </div>
-        <div className="empty-state" style={{ paddingTop: 60 }}>
-          <div className="empty-icon">◈</div>
-          <h3>Votre panier est vide</h3>
-          <p>Découvrez notre collection et ajoutez vos montres préférées.</p>
-          <Link
-            to="/"
-            className="btn-primary"
-            style={{ marginTop: 28, display: "inline-flex" }}
-          >
-            Explorer la collection
-          </Link>
+      <div className="cart">
+        <div className="container">
+          <div className="cart__header fade-up">
+            <span className="section-label">Mon espace beauté</span>
+            <h1 className="section-title">
+              Mon <em>panier</em>
+            </h1>
+          </div>
+          <div className="empty-state fade-up">
+            <div className="empty-icon">◈</div>
+            <h3>Votre panier est vide</h3>
+            <p>
+              Découvrez nos soins d'exception et commencez votre rituel AURUM.
+            </p>
+            <Link
+              to="/"
+              className="btn-primary"
+              style={{ marginTop: 28, display: "inline-flex" }}
+            >
+              Découvrir la collection →
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -58,119 +71,112 @@ export default function CartPage() {
     <div className="cart">
       <div className="container">
         <div className="cart__header fade-up">
-          <span className="section-label">Votre sélection</span>
-          <h1 className="section-title">Panier</h1>
-          <p className="cart__count">
-            {cart.length} article{cart.length > 1 ? "s" : ""}
-          </p>
+          <span className="section-label">Mon espace beauté</span>
+          <h1 className="section-title">
+            Mon <em>panier</em>
+          </h1>
         </div>
 
         <div className="cart__layout">
-          {/* Items */}
-          <div className="cart__items">
+          {/* Liste des produits */}
+          <div className="cart__items fade-up">
             {cart.map((item, i) => (
               <div
                 key={item.id}
-                className="cart__item fade-up"
+                className="cart__item"
                 style={{ animationDelay: `${i * 0.08}s` }}
               >
-                {/* Image */}
-                <div className="cart__item-image">
-                  <img
-                    src={
-                      item.watchImage ||
-                      "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=200"
-                    }
-                    alt={item.watchName}
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                    }}
-                  />
+                <div className="cart__item-img">
+                  {item.watchImageUrl ? (
+                    <img src={item.watchImageUrl} alt={item.watchName} />
+                  ) : (
+                    <div className="cart__item-placeholder">◈</div>
+                  )}
                 </div>
-
-                {/* Details */}
-                <div className="cart__item-details">
-                  <div>
-                    <span className="cart__item-brand">{item.watchBrand}</span>
-                    <h3 className="cart__item-name">{item.watchName}</h3>
-                    <span className="cart__item-unit">
-                      {formatPrice(item.unitPrice)} / pièce
-                    </span>
+                <div className="cart__item-info">
+                  <div className="cart__item-brand">{item.watchBrand}</div>
+                  <div className="cart__item-name">{item.watchName}</div>
+                  <div className="cart__item-price">
+                    {formatPrice(item.unitPrice)}
                   </div>
                 </div>
-
-                {/* Qty controls */}
                 <div className="cart__item-controls">
                   <div className="cart__qty">
                     <button
-                      onClick={() => updateCartItem(item.id, item.quantity - 1)}
-                      disabled={item.quantity <= 1}
+                      onClick={() =>
+                        handleUpdateQty(item.id, item.quantity - 1)
+                      }
                     >
                       −
                     </button>
                     <span>{item.quantity}</span>
                     <button
-                      onClick={() => updateCartItem(item.id, item.quantity + 1)}
+                      onClick={() =>
+                        handleUpdateQty(item.id, item.quantity + 1)
+                      }
                     >
                       +
                     </button>
                   </div>
-                  <span className="cart__item-subtotal">
+                  <div className="cart__item-subtotal">
                     {formatPrice(item.subtotal)}
-                  </span>
-                </div>
-
-                {/* Remove */}
-                <button
-                  className="cart__item-remove"
-                  onClick={() => removeFromCart(item.id)}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
+                  </div>
+                  <button
+                    className="cart__remove"
+                    onClick={() => handleRemove(item.id)}
                   >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                    <path d="M10 11v6M14 11v6" />
-                    <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-                  </svg>
-                </button>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Summary */}
+          {/* Résumé commande */}
           <div
             className="cart__summary fade-up"
-            style={{ animationDelay: "0.2s" }}
+            style={{ animationDelay: "0.15s" }}
           >
-            <h3 className="cart__summary-title">Récapitulatif</h3>
-
+            <h3 className="cart__summary-title">Résumé</h3>
             <div className="divider-gold" style={{ margin: "16px 0" }} />
 
             <div className="cart__summary-rows">
-              {cart.map((item) => (
-                <div key={item.id} className="cart__summary-row">
-                  <span>
-                    {item.watchName} × {item.quantity}
-                  </span>
-                  <span>{formatPrice(item.subtotal)}</span>
-                </div>
-              ))}
+              <div className="cart__summary-row">
+                <span>Sous-total</span>
+                <span>{formatPrice(cartTotal)}</span>
+              </div>
+              <div className="cart__summary-row">
+                <span>Livraison</span>
+                <span style={{ color: "rgba(200,169,110,.6)", fontSize: 11 }}>
+                  Calculée à la commande
+                </span>
+              </div>
             </div>
 
             <div className="divider-gold" style={{ margin: "16px 0" }} />
-
             <div className="cart__summary-total">
-              <span>Total</span>
+              <span>Total estimé</span>
               <span className="price">{formatPrice(cartTotal)}</span>
             </div>
 
-            <div className="cart__summary-note">
+            <button
+              className="btn-primary cart__checkout-btn"
+              onClick={() => navigate("/checkout")}
+            >
+              Commander · {formatPrice(cartTotal)} →
+            </button>
+
+            <div className="cart__secure">
               <svg
                 width="12"
                 height="12"
@@ -181,32 +187,10 @@ export default function CartPage() {
               >
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
-              Paiement sécurisé GIM Pay
+              Paiement sécurisé · GIM Pay · SSL
             </div>
 
-            <button
-              className="btn-primary cart__checkout-btn"
-              onClick={() => navigate("/checkout")}
-            >
-              Procéder au paiement
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
-            </button>
-
-            <Link
-              to="/"
-              className="btn-ghost"
-              style={{ justifyContent: "center", marginTop: 12 }}
-            >
+            <Link to="/" className="cart__continue">
               ← Continuer mes achats
             </Link>
           </div>

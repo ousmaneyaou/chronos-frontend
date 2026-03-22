@@ -4,7 +4,7 @@ import { useApp } from "../context/AppContext";
 import "./Navbar.css";
 
 export default function Navbar() {
-  const { user, cart, logout } = useApp();
+  const { user, logout, cartCount } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
@@ -16,54 +16,61 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location]);
+
   const isActive = (path) => location.pathname === path;
 
   return (
     <nav className={`navbar ${scrolled ? "navbar--scrolled" : ""}`}>
       <div className="navbar__inner">
+        {/* Logo */}
         <Link to="/" className="navbar__logo">
-          Velour
+          <span className="navbar__logo-symbol">◈</span>
+          <span className="navbar__logo-text">AURUM</span>
         </Link>
 
-        <ul
-          className={`navbar__links ${menuOpen ? "navbar__links--open" : ""}`}
-        >
+        {/* Links desktop */}
+        <ul className="navbar__links">
           <li>
-            <Link to="/" className={isActive("/") ? "active" : ""}>
+            <Link
+              to="/"
+              className={`navbar__link ${isActive("/") ? "navbar__link--active" : ""}`}
+            >
               Collection
             </Link>
           </li>
-          <li>
-            <Link to="/#maison" className="">
-              Maison
-            </Link>
-          </li>
-          <li>
-            <Link to="/#ingredients" className="">
-              Ingrédients
-            </Link>
-          </li>
           {user && (
-            <li>
-              <Link
-                to="/orders"
-                className={isActive("/orders") ? "active" : ""}
-              >
-                Commandes
-              </Link>
-            </li>
+            <>
+              <li>
+                <Link
+                  to="/cart"
+                  className={`navbar__link ${isActive("/cart") ? "navbar__link--active" : ""}`}
+                >
+                  Panier
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/orders"
+                  className={`navbar__link ${isActive("/orders") ? "navbar__link--active" : ""}`}
+                >
+                  Commandes
+                </Link>
+              </li>
+            </>
           )}
         </ul>
 
+        {/* Right actions */}
         <div className="navbar__actions">
           {user ? (
             <>
-              <span className="navbar__user">{user.firstName}</span>
               <Link to="/cart" className="navbar__cart">
                 <svg
-                  width="18"
-                  height="18"
+                  width="20"
+                  height="20"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -74,14 +81,15 @@ export default function Navbar() {
                   <path d="M16 10a4 4 0 01-8 0" />
                 </svg>
                 {cartCount > 0 && (
-                  <span className="navbar__cart-count">{cartCount}</span>
+                  <span className="navbar__cart-badge">{cartCount}</span>
                 )}
               </Link>
+              <span className="navbar__user">{user.firstName}</span>
               <button
                 className="navbar__logout"
                 onClick={() => {
                   logout();
-                  navigate("/");
+                  navigate("/login");
                 }}
               >
                 <svg
@@ -99,21 +107,48 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            <button className="navbar__btn" onClick={() => navigate("/login")}>
+            <button
+              className="btn-outline navbar__signin"
+              onClick={() => navigate("/login")}
+            >
               Connexion
             </button>
           )}
-        </div>
 
-        <button
-          className="navbar__burger"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
+          {/* Burger mobile */}
+          <button
+            className="navbar__burger"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
       </div>
+
+      {/* Menu mobile */}
+      {menuOpen && (
+        <div className="navbar__mobile">
+          <Link to="/">Collection</Link>
+          {user && (
+            <Link to="/cart">Panier {cartCount > 0 && `(${cartCount})`}</Link>
+          )}
+          {user && <Link to="/orders">Commandes</Link>}
+          {user ? (
+            <button
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
+            >
+              Déconnexion
+            </button>
+          ) : (
+            <button onClick={() => navigate("/login")}>Connexion</button>
+          )}
+        </div>
+      )}
     </nav>
   );
 }
