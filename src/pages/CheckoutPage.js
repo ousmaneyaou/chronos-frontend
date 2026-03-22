@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { orderApi, paymentApi } from "../services/api";
 import { useApp } from "../context/AppContext";
 import { toast } from "react-toastify";
-import axios from "axios";
 import "./CheckoutPage.css";
 
 const STEPS = ["Livraison", "Paiement", "Confirmation"];
@@ -11,8 +10,6 @@ const STEPS = ["Livraison", "Paiement", "Confirmation"];
 const RETURN_URL =
   (process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000") +
   "/payment/result";
-
-const API_URL = process.env.REACT_APP_API_URL || "/api";
 
 export default function CheckoutPage() {
   const { user, cart, cartTotal, loadCart } = useApp();
@@ -62,11 +59,7 @@ export default function CheckoutPage() {
       });
       setOrder(res.data);
       setStep(1);
-      if (res.data.gimPayOrderUrl) {
-        toast.success("✓ Commande créée — lien GIM Pay généré");
-      } else {
-        toast.info("Commande créée");
-      }
+      toast.success("✓ Commande créée");
     } catch (err) {
       toast.error(err.response?.data?.message || "Erreur lors de la création");
     } finally {
@@ -96,18 +89,14 @@ export default function CheckoutPage() {
       await loadCart();
 
       if (result.challengeRequired && result.threeDsUrl) {
-        // Sauvegarder pour le polling et le webhook
+        // Sauvegarder uniquement l'orderId pour le polling
         localStorage.setItem("pending_order_id", order.id);
-        localStorage.setItem(
-          "pending_merchant_ref",
-          result.merchantReference || "",
-        );
 
         // Ouvrir la page 3DS dans un nouvel onglet
         window.open(result.threeDsUrl, "_blank");
         setThreeDsPending(true);
         toast.info(
-          "Une nouvelle fenêtre s'est ouverte — saisissez votre OTP puis revenez ici",
+          "Fenêtre bancaire ouverte — saisissez votre OTP puis revenez ici",
         );
       } else {
         setStep(2);
@@ -126,40 +115,23 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── Quand le client clique "J'ai validé mon OTP" ──────────────────
+  // ── Polling pur — on attend que GIM Pay envoie le vrai résultat ──
+  // On ne touche pas au statut — GIM Pay l'a déjà mis à jour via webhook
+  // si le client a vraiment validé l'OTP
   const handle3DsComplete = async () => {
     setThreeDsPending(false);
     setPolling(true);
     toast.info("Vérification du paiement...");
 
     const orderId = order?.id || localStorage.getItem("pending_order_id");
-    const merchantRef = localStorage.getItem("pending_merchant_ref");
-
-    // ← Appeler directement le webhook avec la merchantReference
-    // GIM Pay a déjà validé le paiement côté banque
-    // On notifie le backend pour mettre à jour la commande
-    if (merchantRef) {
-      try {
-        await axios.post(`${API_URL}/payment/webhook`, {
-          MerchantReference: merchantRef,
-          Success: true,
-          ActionCode: "00",
-        });
-        console.log("Webhook appelé pour:", merchantRef);
-      } catch (err) {
-        console.warn("Erreur webhook:", err.message);
-      }
-    }
-
     if (!orderId) {
       setPolling(false);
       navigate("/orders");
       return;
     }
 
-    // Polling pour confirmer la mise à jour
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 15; // 30 secondes
 
     const interval = setInterval(async () => {
       attempts++;
@@ -173,23 +145,24 @@ export default function CheckoutPage() {
         ) {
           clearInterval(interval);
           localStorage.removeItem("pending_order_id");
-          localStorage.removeItem("pending_merchant_ref");
           setPolling(false);
           toast.success("✓ Paiement confirmé !");
           setTimeout(() => navigate("/orders"), 1000);
         } else if (orderData.status === "FAILED") {
           clearInterval(interval);
           localStorage.removeItem("pending_order_id");
-          localStorage.removeItem("pending_merchant_ref");
           setPolling(false);
-          toast.error("Paiement échoué");
+          toast.error("Paiement échoué ou OTP incorrect");
           navigate("/orders");
         } else if (attempts >= maxAttempts) {
+          // Timeout — GIM Pay n'a pas encore répondu
+          // Peut-être que l'OTP n'a pas encore été validé
           clearInterval(interval);
           localStorage.removeItem("pending_order_id");
-          localStorage.removeItem("pending_merchant_ref");
           setPolling(false);
-          toast.info("Vérifiez vos commandes");
+          toast.info(
+            "Vérifiez vos commandes — le statut se mettra à jour automatiquement",
+          );
           navigate("/orders");
         }
       } catch (err) {
@@ -301,21 +274,31 @@ export default function CheckoutPage() {
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     </svg>
                   </div>
-                  <h3>Authentification 3D Secure</h3>
-                  <p>
+                  <h3 style={{ color: "var(--gold)", marginBottom: 8 }}>
+                    Authentification 3D Secure
+                  </h3>
+                  <p style={{ color: "var(--gray)", marginBottom: 8 }}>
                     Une fenêtre bancaire s'est ouverte dans un nouvel onglet.
                   </p>
-                  <p>Saisissez votre code OTP puis revenez sur cette page.</p>
+                  <p style={{ color: "var(--gray)", marginBottom: 24 }}>
+                    <strong style={{ color: "var(--white)" }}>Étape 1</strong> —
+                    Saisissez votre OTP dans la fenêtre bancaire
+                    <br />
+                    <strong style={{ color: "var(--white)" }}>Étape 2</strong> —
+                    Revenez sur cette page
+                    <br />
+                    <strong style={{ color: "var(--white)" }}>Étape 3</strong> —
+                    Cliquez le bouton ci-dessous
+                  </p>
                   <button
                     className="btn-primary checkout__btn"
                     onClick={handle3DsComplete}
                     disabled={polling}
-                    style={{ marginTop: 24 }}
                   >
                     {polling ? (
                       <span className="spinner" />
                     ) : (
-                      "✓ J'ai validé mon OTP — Confirmer"
+                      "✓ J'ai validé mon OTP — Vérifier"
                     )}
                   </button>
                   <button
@@ -323,7 +306,7 @@ export default function CheckoutPage() {
                     onClick={() =>
                       window.open(paymentResult.threeDsUrl, "_blank")
                     }
-                    style={{ marginTop: 12, fontSize: 12 }}
+                    style={{ marginTop: 12, fontSize: 12, width: "100%" }}
                   >
                     Rouvrir la fenêtre bancaire →
                   </button>
