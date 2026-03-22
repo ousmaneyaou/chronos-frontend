@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { orderApi, paymentApi } from "../services/api";
 import { useApp } from "../context/AppContext";
@@ -7,9 +7,6 @@ import "./CheckoutPage.css";
 
 const STEPS = ["Livraison", "Paiement", "Confirmation"];
 
-// ReturnURL = page HTML statique dans /public
-// GIM Pay redirige l'iframe vers cette URL après l'OTP
-// La page envoie postMessage au parent (cette page)
 const RETURN_URL =
   (process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000") +
   "/payment-result.html";
@@ -31,7 +28,73 @@ export default function CheckoutPage() {
     cvv2: "",
     disable3ds: false,
   });
+  const orderRef = useRef(null);
 
+  // ── Tous les hooks AVANT les early returns ──────────────────────────
+  const startPolling = useCallback(
+    (orderId) => {
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await orderApi.getById(orderId);
+          const o = res.data;
+          if (o.status === "PAID" || o.payment?.status === "SUCCESS") {
+            clearInterval(interval);
+            localStorage.removeItem("pending_order_id");
+            setPolling(false);
+            toast.success("✓ Paiement confirmé !");
+            setTimeout(() => navigate("/orders"), 1000);
+          } else if (o.status === "FAILED") {
+            clearInterval(interval);
+            localStorage.removeItem("pending_order_id");
+            setPolling(false);
+            toast.error("Paiement échoué");
+            navigate("/orders");
+          } else if (attempts >= 15) {
+            clearInterval(interval);
+            localStorage.removeItem("pending_order_id");
+            setPolling(false);
+            navigate("/orders");
+          }
+        } catch {
+          if (attempts >= 15) {
+            clearInterval(interval);
+            setPolling(false);
+            navigate("/orders");
+          }
+        }
+      }, 2000);
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      const data = event.data;
+      if (!data || data.type !== "GIM_PAY_3DS_RESULT") return;
+      console.log("3DS Result reçu:", data);
+      setThreeDsOpen(false);
+      const orderId = localStorage.getItem("pending_order_id");
+      if (!orderId) {
+        navigate("/orders");
+        return;
+      }
+      if (data.success) {
+        setPolling(true);
+        toast.success("OTP validé ! Vérification du paiement...");
+        startPolling(orderId);
+      } else {
+        localStorage.removeItem("pending_order_id");
+        toast.error("Authentification 3DS échouée");
+        navigate("/orders");
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [navigate, startPolling]);
+
+  // ── Early returns APRÈS tous les hooks ─────────────────────────────
   const formatPrice = (p) =>
     new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -48,76 +111,6 @@ export default function CheckoutPage() {
     return null;
   }
 
-  // ── Écouter le postMessage de payment-result.html ──────────────────
-  // GIM Pay redirige l'iframe → payment-result.html envoie postMessage ici
-  const handleMessage = useCallback(
-    async (event) => {
-      const data = event.data;
-      if (!data || data.type !== "GIM_PAY_3DS_RESULT") return;
-
-      console.log("3DS Result reçu via postMessage:", data);
-      setThreeDsOpen(false);
-
-      const orderId = localStorage.getItem("pending_order_id");
-      if (!orderId) {
-        navigate("/orders");
-        return;
-      }
-
-      if (data.success) {
-        setPolling(true);
-        toast.success("OTP validé ! Vérification du paiement...");
-
-        // Polling — attend que le webhook mette à jour le statut
-        let attempts = 0;
-        const interval = setInterval(async () => {
-          attempts++;
-          try {
-            const res = await orderApi.getById(orderId);
-            const o = res.data;
-
-            if (o.status === "PAID" || o.payment?.status === "SUCCESS") {
-              clearInterval(interval);
-              localStorage.removeItem("pending_order_id");
-              setPolling(false);
-              toast.success("✓ Paiement confirmé !");
-              setTimeout(() => navigate("/orders"), 1000);
-            } else if (o.status === "FAILED") {
-              clearInterval(interval);
-              localStorage.removeItem("pending_order_id");
-              setPolling(false);
-              toast.error("Paiement échoué");
-              navigate("/orders");
-            } else if (attempts >= 15) {
-              clearInterval(interval);
-              localStorage.removeItem("pending_order_id");
-              setPolling(false);
-              toast.info("Vérifiez vos commandes");
-              navigate("/orders");
-            }
-          } catch {
-            if (attempts >= 15) {
-              clearInterval(interval);
-              setPolling(false);
-              navigate("/orders");
-            }
-          }
-        }, 2000);
-      } else {
-        // OTP incorrect ou annulé
-        localStorage.removeItem("pending_order_id");
-        toast.error("Authentification 3DS échouée");
-        navigate("/orders");
-      }
-    },
-    [order, navigate],
-  );
-
-  useEffect(() => {
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [handleMessage]);
-
   const handleCreateOrder = async (e) => {
     e.preventDefault();
     if (!shipping.address) {
@@ -130,6 +123,7 @@ export default function CheckoutPage() {
         userId: user.id,
         shippingAddress: shipping.address,
       });
+      orderRef.current = res.data;
       setOrder(res.data);
       setStep(1);
       toast.success("✓ Commande créée");
@@ -156,13 +150,11 @@ export default function CheckoutPage() {
         disable3ds: payment.disable3ds,
         returnUrl: RETURN_URL,
       });
-
       const result = res.data;
       setPaymentResult(result);
       await loadCart();
 
       if (result.challengeRequired && result.threeDsUrl) {
-        // Doc GIM Pay page 10 : ouvrir ThreeDSUrl dans une iframe
         localStorage.setItem("pending_order_id", order.id);
         setThreeDsOpen(true);
         toast.info("Authentification 3D Secure — complétez la vérification");
@@ -198,7 +190,6 @@ export default function CheckoutPage() {
   return (
     <div className="checkout">
       <div className="container">
-        {/* Progress bar */}
         <div className="checkout__progress fade-up">
           {STEPS.map((s, i) => (
             <React.Fragment key={s}>
@@ -233,7 +224,6 @@ export default function CheckoutPage() {
         </div>
 
         <div className="checkout__layout">
-          {/* Étape 0 — Livraison */}
           {step === 0 && (
             <div className="checkout__form fade-up">
               <h2 className="checkout__section-title">Adresse de livraison</h2>
@@ -263,14 +253,12 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* Étape 1 — Paiement */}
           {step === 1 && (
             <div className="checkout__form fade-up">
               <h2 className="checkout__section-title">
                 Informations de paiement
               </h2>
 
-              {/* Spinner polling */}
               {polling && (
                 <div style={{ textAlign: "center", padding: "48px 0" }}>
                   <span className="spinner" style={{ width: 36, height: 36 }} />
@@ -439,7 +427,6 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* Étape 2 — Confirmation */}
           {step === 2 && (
             <div className="checkout__confirmation fade-up">
               <div
@@ -489,7 +476,6 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* Sidebar */}
           {step < 2 && !polling && (
             <div
               className="checkout__sidebar fade-up"
@@ -553,7 +539,6 @@ export default function CheckoutPage() {
                 Saisissez votre code OTP pour valider le paiement
               </span>
             </div>
-            {/* iframe — méthode officielle doc GIM Pay page 10 */}
             <iframe
               src={paymentResult.threeDsUrl}
               title="3D Secure Authentication"
