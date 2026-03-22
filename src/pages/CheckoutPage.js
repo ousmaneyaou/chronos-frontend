@@ -7,6 +7,9 @@ import "./CheckoutPage.css";
 
 const STEPS = ["Livraison", "Paiement", "Confirmation"];
 
+// ← CORRIGÉ : dynamique selon l'environnement
+// En local      : http://localhost:3000/payment/result
+// En production : https://ton-site.vercel.app/payment/result
 const RETURN_URL =
   (process.env.REACT_APP_FRONTEND_URL || "http://localhost:3000") +
   "/payment/result";
@@ -17,7 +20,6 @@ export default function CheckoutPage() {
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [polling, setPolling] = useState(false);
   const [order, setOrder] = useState(null);
   const [paymentResult, setPaymentResult] = useState(null);
   const [threeDsOpen, setThreeDsOpen] = useState(false);
@@ -93,8 +95,6 @@ export default function CheckoutPage() {
       await loadCart();
 
       if (result.challengeRequired && result.threeDsUrl) {
-        // 3DS ON → sauvegarder l'orderId et ouvrir l'iframe
-        localStorage.setItem("pending_order_id", order.id);
         toast.info(
           "Authentification 3D Secure requise — complétez la vérification",
         );
@@ -116,62 +116,10 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── Polling automatique après fermeture iframe 3DS ──────────────
-  const handle3DsComplete = async () => {
+  const handle3DsComplete = () => {
     setThreeDsOpen(false);
-    setPolling(true);
-    toast.info("Vérification du paiement en cours...");
-
-    const orderId = order?.id || localStorage.getItem("pending_order_id");
-    if (!orderId) {
-      setPolling(false);
-      navigate("/orders");
-      return;
-    }
-
-    // Interroge le backend toutes les 2s pendant 30s max
-    let attempts = 0;
-    const maxAttempts = 15;
-
-    const interval = setInterval(async () => {
-      attempts++;
-      try {
-        const res = await orderApi.getById(orderId);
-        const orderData = res.data;
-
-        if (
-          orderData.status === "PAID" ||
-          orderData.payment?.status === "SUCCESS"
-        ) {
-          // Paiement confirmé → rediriger vers commandes
-          clearInterval(interval);
-          localStorage.removeItem("pending_order_id");
-          setPolling(false);
-          toast.success("✓ Paiement confirmé ! Redirection...");
-          setTimeout(() => navigate("/orders"), 1000);
-        } else if (orderData.status === "FAILED") {
-          // Paiement échoué
-          clearInterval(interval);
-          localStorage.removeItem("pending_order_id");
-          setPolling(false);
-          toast.error("Paiement échoué");
-          navigate("/orders");
-        } else if (attempts >= maxAttempts) {
-          // Timeout — on redirige quand même
-          clearInterval(interval);
-          localStorage.removeItem("pending_order_id");
-          setPolling(false);
-          toast.info("Authentification terminée — vérifiez vos commandes");
-          navigate("/orders");
-        }
-      } catch (err) {
-        if (attempts >= maxAttempts) {
-          clearInterval(interval);
-          setPolling(false);
-          navigate("/orders");
-        }
-      }
-    }, 2000);
+    setStep(2);
+    toast.success("Authentification 3DS terminée");
   };
 
   const formatCard = (v) =>
@@ -303,7 +251,7 @@ export default function CheckoutPage() {
                         pan: formatCard(e.target.value),
                       }))
                     }
-                    placeholder="xxxx xxxx xxxx xxxx"
+                    placeholder="5219 5702 4551 7691"
                     maxLength={19}
                     required
                   />
@@ -320,7 +268,7 @@ export default function CheckoutPage() {
                           dateExpiration: formatExpiry(e.target.value),
                         }))
                       }
-                      placeholder="xx/xx"
+                      placeholder="26/04"
                       maxLength={5}
                       required
                     />
@@ -336,7 +284,7 @@ export default function CheckoutPage() {
                           cvv2: e.target.value.replace(/\D/g, "").slice(0, 4),
                         }))
                       }
-                      placeholder="xxx"
+                      placeholder="927"
                       maxLength={4}
                       required
                     />
@@ -555,18 +503,10 @@ export default function CheckoutPage() {
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                Après avoir saisi votre OTP, cliquez sur le bouton ci-dessous
+                Après l'authentification, cliquez sur le bouton ci-dessous
               </div>
-              <button
-                className="btn-primary"
-                onClick={handle3DsComplete}
-                disabled={polling}
-              >
-                {polling ? (
-                  <span className="spinner" />
-                ) : (
-                  "✓ J'ai terminé l'authentification"
-                )}
+              <button className="btn-primary" onClick={handle3DsComplete}>
+                ✓ J'ai terminé l'authentification
               </button>
             </div>
           </div>

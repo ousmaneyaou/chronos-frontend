@@ -4,6 +4,7 @@ import { orderApi } from "../services/api";
 import { useApp } from "../context/AppContext";
 import "./OrdersPage.css";
 
+// Statuts commande
 const STATUS_MAP = {
   PENDING: { label: "En attente", cls: "badge-gray" },
   PAYMENT_INITIATED: { label: "Paiement initié", cls: "badge-gold" },
@@ -15,8 +16,10 @@ const STATUS_MAP = {
   FAILED: { label: "Échouée", cls: "badge-red" },
 };
 
+// Statuts paiement — 909 = carte test UAT = "Traitée" pas "Échouée"
 const getPaymentLabel = (payment) => {
   if (!payment) return null;
+  // Code 909 avec carte test = comportement normal UAT
   if (payment.actionCode === "909") {
     return { label: "Traitée (test)", cls: "badge-gold" };
   }
@@ -29,10 +32,6 @@ const getPaymentLabel = (payment) => {
   };
   return map[payment.status] || { label: payment.status, cls: "badge-gray" };
 };
-
-// ← Vrai si le paiement est déjà finalisé — cache le bouton "Reprendre 3DS"
-const isPaidOrSuccess = (order) =>
-  order.status === "PAID" || order.payment?.status === "SUCCESS";
 
 export default function OrdersPage() {
   const { user } = useApp();
@@ -121,21 +120,13 @@ export default function OrdersPage() {
               const isOpen = expanded === order.id;
               const is909 = order.payment?.actionCode === "909";
 
-              // ← Bouton 3DS visible seulement si :
-              // 1. challengeRequired = true (3DS demandé)
-              // 2. threeDsUrl existe
-              // 3. La commande n'est PAS encore payée
-              const show3dsButton =
-                order.payment?.challengeRequired &&
-                order.payment?.threeDsUrl &&
-                !isPaidOrSuccess(order);
-
               return (
                 <div
                   key={order.id}
                   className={`orders__item ${isOpen ? "orders__item--open" : ""}`}
                   style={{ animationDelay: `${i * 0.06}s` }}
                 >
+                  {/* ── Header ── */}
                   <div
                     className="orders__item-header"
                     onClick={() => setExpanded(isOpen ? null : order.id)}
@@ -151,6 +142,7 @@ export default function OrdersPage() {
                     </div>
 
                     <div className="orders__item-center">
+                      {/* Statut commande — si 909, afficher "Traitée" à la place de "Échouée" */}
                       {is909 ? (
                         <span className="badge badge-gold">Traitée</span>
                       ) : (
@@ -158,6 +150,7 @@ export default function OrdersPage() {
                           {status.label}
                         </span>
                       )}
+                      {/* Statut paiement */}
                       {payLabel && (
                         <span className={`badge ${payLabel.cls}`}>
                           {payLabel.label}
@@ -183,6 +176,7 @@ export default function OrdersPage() {
                     </div>
                   </div>
 
+                  {/* ── Détails expandés ── */}
                   {isOpen && (
                     <div className="orders__item-body fade-in">
                       <div className="orders__item-grid">
@@ -310,32 +304,33 @@ export default function OrdersPage() {
                                 </div>
                               )}
 
-                            {/* ← Bouton 3DS — caché si déjà PAID ou SUCCESS */}
-                            {show3dsButton && (
-                              <div className="orders__3ds-section">
-                                <div className="orders__3ds-badge">
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.5"
+                            {/* Bouton reprendre 3DS si en cours */}
+                            {order.payment.challengeRequired &&
+                              order.payment.threeDsUrl && (
+                                <div className="orders__3ds-section">
+                                  <div className="orders__3ds-badge">
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="1.5"
+                                    >
+                                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                    </svg>
+                                    Authentification 3D Secure en attente
+                                  </div>
+                                  <a
+                                    href={order.payment.threeDsUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn-primary orders__3ds-btn"
                                   >
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                  </svg>
-                                  Authentification 3D Secure en attente
+                                    Reprendre l'authentification 3DS →
+                                  </a>
                                 </div>
-                                <a
-                                  href={order.payment.threeDsUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="btn-primary orders__3ds-btn"
-                                >
-                                  Reprendre l'authentification 3DS →
-                                </a>
-                              </div>
-                            )}
+                              )}
                           </div>
                         )}
                       </div>

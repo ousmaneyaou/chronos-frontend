@@ -8,8 +8,8 @@ import LoginPage from "./pages/LoginPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import OrdersPage from "./pages/OrdersPage";
-import PaymentResultPage from "./pages/PaymentResultPage"; // ← NOUVEAU
 
+// Route protégée
 function ProtectedRoute({ children }) {
   const { user } = useApp();
   return user ? children : <Navigate to="/login" replace />;
@@ -47,17 +47,6 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
-        {/* ← NOUVEAU : ReturnURL GIM Pay après authentification 3DS */}
-        <Route
-          path="/payment/result"
-          element={
-            <ProtectedRoute>
-              <PaymentResultPage />
-            </ProtectedRoute>
-          }
-        />
-
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Footer />
