@@ -93,8 +93,12 @@ export default function CheckoutPage() {
       await loadCart();
 
       if (result.challengeRequired && result.threeDsUrl) {
-        // ← Sauvegarder l'orderId pour le polling
+        // ← Sauvegarder l'orderId et la merchantReference pour le polling
         localStorage.setItem("pending_order_id", order.id);
+        localStorage.setItem(
+          "pending_merchant_ref",
+          result.merchantReference || "",
+        );
 
         // ← Ouvrir la page 3DS dans un NOUVEL ONGLET
         // (pas dans une iframe — évite le problème de redirection)
