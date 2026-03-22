@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vérification...</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Georgia, serif;
+      background: #0a0a0a;
+      color: #f5f0e8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 24px;
+    }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    .title { font-size: 1.4rem; color: #c9a84c; margin-bottom: 8px; }
+    .sub { font-size: 0.8rem; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="icon" id="icon">⏳</div>
+  <div class="title" id="title">Vérification du paiement...</div>
+  <div class="sub">Fermeture automatique</div>
+
+  <script>
+    // GIM Pay redirige cette iframe vers :
+    // /payment-result.html?Success=true&MerchantReference=PAY_XX&ActionCode=00
+    var p = new URLSearchParams(window.location.search);
+    var success = p.get('Success') === 'true' || p.get('success') === 'true';
+    var merchantRef = p.get('MerchantReference') || p.get('merchantReference') || '';
+    var actionCode  = p.get('ActionCode')  || p.get('actionCode')  || '';
+    var systemRef   = p.get('SystemReference') || p.get('systemReference') || '';
+
+    if (success) {
+      document.getElementById('icon').textContent  = '✓';
+      document.getElementById('title').textContent = 'Paiement validé !';
+      document.getElementById('title').style.color = '#4caf50';
+    } else {
+      document.getElementById('icon').textContent  = '✗';
+      document.getElementById('title').textContent = 'Authentification échouée';
+      document.getElementById('title').style.color = '#f44336';
+    }
+
+    // Envoyer le résultat à la page parent (CheckoutPage) via postMessage
+    var msg = {
+      type: 'GIM_PAY_3DS_RESULT',
+      success: success,
+      merchantReference: merchantRef,
+      actionCode: actionCode,
+      systemReference: systemRef
+    };
+
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(msg, '*');
+    }
+  </script>
+</body>
+</html>
