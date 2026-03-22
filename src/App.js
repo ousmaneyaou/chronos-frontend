@@ -8,7 +8,6 @@ import LoginPage from "./pages/LoginPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import OrdersPage from "./pages/OrdersPage";
-import PaymentResultPage from "./pages/PaymentResultPage"; // ← NOUVEAU
 
 function ProtectedRoute({ children }) {
   const { user } = useApp();
@@ -44,16 +43,6 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <OrdersPage />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ← NOUVEAU : ReturnURL GIM Pay après authentification 3DS */}
-        <Route
-          path="/payment/result"
-          element={
-            <ProtectedRoute>
-              <PaymentResultPage />
             </ProtectedRoute>
           }
         />
