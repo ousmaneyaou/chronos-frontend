@@ -302,7 +302,7 @@ export default function CheckoutPage() {
                             pan: formatCard(e.target.value),
                           }))
                         }
-                        placeholder="5219 5702 4551 7691"
+                        placeholder="xxxx xxxx xxxx xxxx"
                         maxLength={19}
                         required
                       />
@@ -319,7 +319,7 @@ export default function CheckoutPage() {
                               dateExpiration: formatExpiry(e.target.value),
                             }))
                           }
-                          placeholder="26/04"
+                          placeholder="AA/MM"
                           maxLength={5}
                           required
                         />
@@ -337,7 +337,7 @@ export default function CheckoutPage() {
                                 .slice(0, 4),
                             }))
                           }
-                          placeholder="927"
+                          placeholder="CVV"
                           maxLength={4}
                           required
                         />

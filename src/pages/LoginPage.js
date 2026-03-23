@@ -71,7 +71,7 @@ export default function LoginPage() {
                   name="firstName"
                   value={form.firstName}
                   onChange={handleChange}
-                  placeholder="Aminata"
+                  placeholder="firstName"
                   required
                 />
               </div>
@@ -81,7 +81,7 @@ export default function LoginPage() {
                   name="lastName"
                   value={form.lastName}
                   onChange={handleChange}
-                  placeholder="Diallo"
+                  placeholder="name"
                 />
               </div>
             </div>
@@ -94,7 +94,7 @@ export default function LoginPage() {
               name="email"
               value={form.email}
               onChange={handleChange}
-              placeholder="aminata@aurum.sn"
+              placeholder="your email"
               required
             />
           </div>
